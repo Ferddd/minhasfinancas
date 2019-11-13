@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import app.com.minhasfinancas.api.dto.AtualizaStatusDto;
 import app.com.minhasfinancas.api.dto.LancamentoDto;
 import app.com.minhasfinancas.exception.RegraNegocioException;
 import app.com.minhasfinancas.model.entity.Lancamento;
@@ -40,12 +41,15 @@ public class LancamentoController {
 	@GetMapping
 	public ResponseEntity buscar(@RequestParam(value = "descricao", required = false) String descricao,
 			@RequestParam(value = "mes", required = false) Integer mes,
-			@RequestParam(value = "ano", required = false) Integer ano, @RequestParam("usuario") Long idUsuario) {
+			@RequestParam(value = "ano", required = false) Integer ano,
+			@RequestParam(value = "tipo", required= false) TipoLancamento tipo,
+			@RequestParam("usuario") Long idUsuario) {
 
 		Lancamento lancamentoFiltro = new Lancamento();
 		lancamentoFiltro.setDescricao(descricao);
 		lancamentoFiltro.setMes(mes);
 		lancamentoFiltro.setAno(ano);
+		lancamentoFiltro.setTipo(tipo);
 
 		Optional<Usuario> user = usuario.obterPorId(idUsuario);
 		if (!user.isPresent()) {
@@ -94,6 +98,24 @@ public class LancamentoController {
 			return new ResponseEntity(HttpStatus.NO_CONTENT);
 		}).orElseGet(() -> new ResponseEntity("Lancamento nao encontrado", HttpStatus.BAD_REQUEST));
 
+	}
+	
+	@PutMapping("{id}/atualiza-status")
+	public ResponseEntity atualizarLancamento(@PathVariable("id") Long id, @RequestBody AtualizaStatusDto dto) {
+		
+		return service.obterPorId(id).map(entity -> {
+			StatusLancamento StatusAtual = StatusLancamento.valueOf(dto.getStatus());
+			if (StatusAtual == null) {
+				ResponseEntity.badRequest().body("Não foi possível atualizar o status do lançamento");
+			}
+			try {
+				entity.setStatus(StatusAtual);
+				service.atualizar(entity);
+				return ResponseEntity.ok(entity);
+			}catch  (RegraNegocioException e) {
+				return ResponseEntity.badRequest().body(e.getMessage());
+			}
+		}).orElseGet(() -> new ResponseEntity("Lancamento nao encontrado", HttpStatus.BAD_REQUEST));
 	}
 
 	private Lancamento converter(LancamentoDto dto) {
